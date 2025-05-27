@@ -594,28 +594,56 @@ class VehicleDetectionMainWindow(QMainWindow):
         self.status_label.setText(f"Processing device changed to: {device}")
 
     def _on_frame_processed(self, frame: np.ndarray, detections: list, stats: dict):
-        """Handle processed frame from detection worker"""
+        """FIXED: Handle processed frame from detection worker with proper vehicle counts"""
         try:
             # Update video display
             result_frame = self.video_widget.draw_detections(frame, detections, self.detector)
             self.video_widget.update_frame(result_frame)
 
-            # Update statistics
-            self.statistics_panel.update_statistics(stats, dict(self.detector.vehicle_counts))
+            # FIXED: Get proper vehicle counts from detector
+            vehicle_counts = {}
+            if self.detector and hasattr(self.detector, 'vehicle_counts'):
+                # Convert defaultdict to regular dict for statistics panel
+                vehicle_counts = {
+                    vehicle_type: {
+                        'up': counts['up'],
+                        'down': counts['down']
+                    }
+                    for vehicle_type, counts in self.detector.vehicle_counts.items()
+                }
+
+                # Ensure all vehicle types are present even if count is 0
+                for vehicle_type in ['car', 'motorcycle', 'bus', 'truck']:
+                    if vehicle_type not in vehicle_counts:
+                        vehicle_counts[vehicle_type] = {'up': 0, 'down': 0}
+
+            # Update statistics with proper vehicle counts
+            self.statistics_panel.update_statistics(stats, vehicle_counts)
 
             # Update status bar
             self.fps_label.setText(f"FPS: {stats['fps']:.1f}")
 
             # Update data manager
             if self.data_manager:
-                line_stats = [counter.get_statistics() for counter in self.detector.line_counters]
+                line_stats = []
+                if self.detector and hasattr(self.detector, 'line_counters'):
+                    line_stats = [counter.get_statistics() for counter in self.detector.line_counters]
+
                 self.data_manager.add_count_data(
-                    dict(self.detector.vehicle_counts),
+                    vehicle_counts,  # Use the properly formatted vehicle_counts
                     stats['fps'],
                     line_stats
                 )
+
+            # Debug print untuk verify data
+            total_counts = sum(sum(counts.values()) for counts in vehicle_counts.values())
+            if total_counts > 0:
+                print(f"📊 Vehicle counts updated: {vehicle_counts} (Total: {total_counts})")
+
         except Exception as e:
             print(f"Error in frame processing: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _on_detection_error(self, error_message: str):
         """Handle detection error"""
@@ -1211,26 +1239,71 @@ class VehicleDetectionMainWindow(QMainWindow):
         self._refresh_detector_config()
         self.status_label.setText(f"Processing device changed to: {device}")
 
+
     def _on_frame_processed(self, frame: np.ndarray, detections: list, stats: dict):
-        """Handle processed frame from detection worker"""
-        # Update video display
-        result_frame = self.video_widget.draw_detections(frame, detections, self.detector)
-        self.video_widget.update_frame(result_frame)
+        """UPDATED: Handle processed frame dengan ROI debug visualization"""
+        try:
+            # IMPROVED: Gunakan method draw_detections yang sudah include ROI debug
+            if self.detector:
+                result_frame = self.detector.draw_detections(frame, detections)
+            else:
+                result_frame = self.video_widget.draw_detections(frame, detections, self.detector)
 
-        # Update statistics
-        self.statistics_panel.update_statistics(stats, dict(self.detector.vehicle_counts))
+            # Update video display
+            self.video_widget.update_frame(result_frame)
 
-        # Update status bar
-        self.fps_label.setText(f"FPS: {stats['fps']:.1f}")
+            # Get proper vehicle counts from detector
+            vehicle_counts = {}
+            if self.detector and hasattr(self.detector, 'vehicle_counts'):
+                vehicle_counts = {
+                    vehicle_type: {
+                        'up': counts['up'],
+                        'down': counts['down']
+                    }
+                    for vehicle_type, counts in self.detector.vehicle_counts.items()
+                }
 
-        # Update data manager
-        if self.data_manager:
-            line_stats = [counter.get_statistics() for counter in self.detector.line_counters]
-            self.data_manager.add_count_data(
-                dict(self.detector.vehicle_counts),
-                stats['fps'],
-                line_stats
-            )
+                # Ensure all vehicle types are present
+                for vehicle_type in ['car', 'motorcycle', 'bus', 'truck']:
+                    if vehicle_type not in vehicle_counts:
+                        vehicle_counts[vehicle_type] = {'up': 0, 'down': 0}
+
+            # Update statistics
+            self.statistics_panel.update_statistics(stats, vehicle_counts)
+
+            # Update status bar dengan ROI info
+            fps = stats['fps']
+            roi_status = "ROI ON" if stats.get('roi_enabled', False) else "ROI OFF"
+            detection_count = len(detections)
+
+            self.fps_label.setText(f"FPS: {fps:.1f}")
+
+            # Update status dengan ROI feedback
+            if stats.get('roi_enabled', False):
+                status_text = f"Detection: {detection_count} vehicles in ROI area"
+                self.status_label.setText(status_text)
+            else:
+                status_text = f"Detection: {detection_count} vehicles (full frame)"
+                self.status_label.setText(status_text)
+
+            # Update data manager
+            if self.data_manager:
+                line_stats = []
+                if self.detector and hasattr(self.detector, 'line_counters'):
+                    line_stats = [counter.get_statistics() for counter in self.detector.line_counters]
+
+                self.data_manager.add_count_data(vehicle_counts, stats['fps'], line_stats)
+
+            # Debug info untuk ROI
+            if stats.get('roi_enabled', False):
+                total_counts = sum(sum(counts.values()) for counts in vehicle_counts.values())
+                if detection_count > 0:
+                    print(f"🎯 ROI Detection: {detection_count} vehicles detected in ROI area")
+
+        except Exception as e:
+            print(f"Error in frame processing: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _on_detection_error(self, error_message: str):
         """Handle detection error"""
@@ -1250,11 +1323,76 @@ class VehicleDetectionMainWindow(QMainWindow):
             self.detector.add_counting_line(point1, point2)
             self.status_label.setText("Counting line added")
 
+    def _on_roi_completed(self, points: list):
+        """UPDATED: Handle ROI completion dengan better feedback"""
+        try:
+            self.control_bar.reset_mode()
+
+            if self.detector and len(points) >= 3:
+                # Get current frame shape
+                if hasattr(self.video_widget, 'canvas') and self.video_widget.canvas.current_frame is not None:
+                    frame_shape = self.video_widget.canvas.current_frame.shape[:2]
+
+                    # Set ROI dengan validation
+                    success = self.detector.set_roi_from_points(points, frame_shape)
+
+                    if success:
+                        # Calculate ROI area untuk user feedback
+                        if self.detector.roi_mask is not None:
+                            roi_area = np.sum(self.detector.roi_mask > 0)
+                            total_area = frame_shape[0] * frame_shape[1]
+                            roi_percentage = (roi_area / total_area) * 100
+
+                            self.status_label.setText(f"ROI set successfully - {roi_percentage:.1f}% of frame")
+
+                            # Show informative message
+                            from PySide6.QtWidgets import QMessageBox
+                            QMessageBox.information(
+                                self,
+                                "ROI Created",
+                                f"ROI successfully created!\n\n"
+                                f"• {len(points)} points defined\n"
+                                f"• {roi_percentage:.1f}% of frame area\n"
+                                f"• Detection now LIMITED to ROI area\n"
+                                f"• Green overlay shows active detection zone"
+                            )
+                        else:
+                            self.status_label.setText("ROI creation failed")
+                            QMessageBox.warning(self, "ROI Error", "Failed to create ROI mask")
+                    else:
+                        self.status_label.setText("ROI creation failed - invalid points")
+                        QMessageBox.warning(self, "ROI Error", "Invalid ROI points. Please try again with at least 3 points.")
+                else:
+                    print("❌ No current frame available for ROI")
+                    QMessageBox.warning(self, "ROI Error", "No video frame available. Please load a video source first.")
+
+        except Exception as e:
+            print(f"ROI completion error: {e}")
+            QMessageBox.critical(self, "ROI Error", f"Error creating ROI: {str(e)}")
+
     def _on_annotations_cleared(self):
-        """Handle annotations clearing"""
-        if self.detector:
-            self.detector.clear_roi_and_lines()
-            self.status_label.setText("Annotations cleared")
+        """UPDATED: Handle annotations clearing dengan better feedback"""
+        try:
+            if self.detector:
+                self.detector.clear_roi_and_lines()
+                self.status_label.setText("ROI and counting lines cleared - detection now uses full frame")
+
+                # Show confirmation
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self,
+                    "Annotations Cleared",
+                    "All annotations cleared!\n\n"
+                    "• ROI removed\n"
+                    "• Counting lines removed\n"
+                    "• Detection now uses full frame\n"
+                    "• Vehicle counts reset"
+                )
+
+            self.annotations_cleared.emit()
+
+        except Exception as e:
+            print(f"Annotations clear error: {e}")
 
     def _test_api_connection(self):
         """Test API connection"""

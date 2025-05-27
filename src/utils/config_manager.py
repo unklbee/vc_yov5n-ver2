@@ -18,7 +18,7 @@ class DetectionConfig:
     input_shape: tuple = (416, 416)
     conf_threshold: float = 0.25
     nms_threshold: float = 0.5
-    frame_skip: int = 2
+    frame_skip: int = 1
 
 
 @dataclass

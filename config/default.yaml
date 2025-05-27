@@ -12,8 +12,8 @@ data_storage:
 detection:
   conf_threshold: 0.25
   device: CPU
-  frame_skip: 2
-  input_shape:
+  frame_skip: 1
+  input_shape: !!python/tuple
   - 416
   - 416
   model_path: models/yolov5n-416.xml
@@ -26,5 +26,5 @@ tracker:
 ui:
   default_height: 800
   default_width: 1200
-  theme: dark
+  theme: light
   window_title: Vehicle Detection System

@@ -1,14 +1,15 @@
 """
-src/gui/widgets/statistics_panel.py
-Statistics panel widget with real-time data visualization
+src/gui/widgets/statistics_panel.py - FIXED untuk PySide6
+Mengganti implementasi dengan PySide6 untuk konsistensi dan fix vehicle counting display
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QGroupBox, QProgressBar, QGridLayout,
-    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy,
+    QSpacerItem
 )
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal, QSize
 from PySide6.QtGui import QFont, QColor, QPalette
 from typing import Dict, Any, List
 import time
@@ -16,12 +17,13 @@ from datetime import datetime
 
 
 class MetricCard(QFrame):
-    """Individual metric display card"""
+    """Individual metric display card dengan PySide6"""
 
     def __init__(self, title: str, value: str = "0", unit: str = "", icon: str = "●", parent=None):
         super().__init__(parent)
 
         self.setFixedHeight(80)
+        self.setFrameStyle(QFrame.StyledPanel)
         self.setStyleSheet("""
             QFrame {
                 background-color: #3C3F41;
@@ -125,40 +127,44 @@ class SystemMetricsGroup(QGroupBox):
 
     def update_metrics(self, stats: Dict[str, Any]):
         """Update system metrics"""
-        # FPS
-        fps = stats.get('fps', 0.0)
-        if fps > 25:
-            color = "#51cf66"  # Green
-        elif fps > 15:
-            color = "#FFC66D"  # Yellow
-        else:
-            color = "#ff6b6b"  # Red
-        self.fps_card.update_value(f"{fps:.1f}", color)
+        try:
+            # FPS
+            fps = stats.get('fps', 0.0)
+            if fps > 25:
+                color = "#51cf66"  # Green
+            elif fps > 15:
+                color = "#FFC66D"  # Yellow
+            else:
+                color = "#ff6b6b"  # Red
+            self.fps_card.update_value(f"{fps:.1f}", color)
 
-        # Frame skip
-        frame_skip = stats.get('frame_skip', 1)
-        self.frame_skip_card.update_value(f"1/{frame_skip}")
+            # Frame skip
+            frame_skip = stats.get('frame_skip', 1)
+            self.frame_skip_card.update_value(f"1/{frame_skip}")
 
-        # ROI status
-        roi_enabled = stats.get('roi_enabled', False)
-        if roi_enabled:
-            self.roi_card.update_value("ON", "#51cf66")
-            self.roi_card.set_icon_color("#51cf66")
-        else:
-            self.roi_card.update_value("OFF", "#9E9E9E")
-            self.roi_card.set_icon_color("#9E9E9E")
+            # ROI status
+            roi_enabled = stats.get('roi_enabled', False)
+            if roi_enabled:
+                self.roi_card.update_value("ON", "#51cf66")
+                self.roi_card.set_icon_color("#51cf66")
+            else:
+                self.roi_card.update_value("OFF", "#9E9E9E")
+                self.roi_card.set_icon_color("#9E9E9E")
 
-        # Lines count
-        line_count = stats.get('line_count', 0)
-        self.lines_card.update_value(str(line_count))
-        if line_count > 0:
-            self.lines_card.set_icon_color("#4A88C7")
-        else:
-            self.lines_card.set_icon_color("#9E9E9E")
+            # Lines count
+            line_count = stats.get('line_count', 0)
+            self.lines_card.update_value(str(line_count))
+            if line_count > 0:
+                self.lines_card.set_icon_color("#4A88C7")
+            else:
+                self.lines_card.set_icon_color("#9E9E9E")
+
+        except Exception as e:
+            print(f"❌ Error updating system metrics: {e}")
 
 
 class VehicleCountsGroup(QGroupBox):
-    """Vehicle counting statistics group"""
+    """Vehicle counting statistics group - FIXED untuk menampilkan counts dengan benar"""
 
     def __init__(self, parent=None):
         super().__init__("Vehicle Counts", parent)
@@ -200,6 +206,10 @@ class VehicleCountsGroup(QGroupBox):
                     border: 1px solid #555555;
                     border-radius: 6px;
                     padding: 8px;
+                    margin: 2px;
+                }
+                QFrame:hover {
+                    border-color: #4A88C7;
                 }
             """)
 
@@ -230,12 +240,15 @@ class VehicleCountsGroup(QGroupBox):
             total_label.setMinimumWidth(30)
             total_label.setAlignment(Qt.AlignCenter)
 
+            separator = QLabel("|")
+            separator.setStyleSheet("color: #555555;")
+
             card_layout.addWidget(icon_label)
             card_layout.addWidget(name_label)
             card_layout.addStretch()
             card_layout.addWidget(up_label)
             card_layout.addWidget(down_label)
-            card_layout.addWidget(QLabel("|"))
+            card_layout.addWidget(separator)
             card_layout.addWidget(total_label)
 
             self.vehicle_cards[vehicle_type] = {
@@ -255,6 +268,7 @@ class VehicleCountsGroup(QGroupBox):
                 border: 1px solid #4A88C7;
                 border-radius: 6px;
                 padding: 8px;
+                margin: 2px;
             }
         """)
 
@@ -273,37 +287,54 @@ class VehicleCountsGroup(QGroupBox):
         self.grand_total_label = QLabel("0")
         self.grand_total_label.setStyleSheet("color: white; font-weight: bold; font-size: 18px;")
 
+        separator = QLabel("|")
+        separator.setStyleSheet("color: #CCCCCC;")
+
         total_layout.addWidget(total_title)
         total_layout.addStretch()
         total_layout.addWidget(self.total_up_label)
         total_layout.addWidget(self.total_down_label)
-        total_layout.addWidget(QLabel("|"))
+        total_layout.addWidget(separator)
         total_layout.addWidget(self.grand_total_label)
 
         layout.addWidget(self.total_frame)
 
     def update_counts(self, vehicle_counts: Dict[str, Dict[str, int]]):
-        """Update vehicle counts"""
-        total_up = 0
-        total_down = 0
+        """FIXED: Update vehicle counts dengan proper data handling"""
+        try:
+            print(f"📊 Updating vehicle counts: {vehicle_counts}")
 
-        for vehicle_type, cards in self.vehicle_cards.items():
-            counts = vehicle_counts.get(vehicle_type, {'up': 0, 'down': 0})
-            up_count = counts['up']
-            down_count = counts['down']
-            total_count = up_count + down_count
+            total_up = 0
+            total_down = 0
 
-            cards['up'].setText(f"↑ {up_count}")
-            cards['down'].setText(f"↓ {down_count}")
-            cards['total'].setText(str(total_count))
+            for vehicle_type, cards in self.vehicle_cards.items():
+                counts = vehicle_counts.get(vehicle_type, {'up': 0, 'down': 0})
+                up_count = counts.get('up', 0)
+                down_count = counts.get('down', 0)
+                total_count = up_count + down_count
 
-            total_up += up_count
-            total_down += down_count
+                cards['up'].setText(f"↑ {up_count}")
+                cards['down'].setText(f"↓ {down_count}")
+                cards['total'].setText(str(total_count))
 
-        # Update totals
-        self.total_up_label.setText(f"↑ {total_up}")
-        self.total_down_label.setText(f"↓ {total_down}")
-        self.grand_total_label.setText(str(total_up + total_down))
+                total_up += up_count
+                total_down += down_count
+
+                # Debug print untuk setiap vehicle type
+                if total_count > 0:
+                    print(f"  {vehicle_type}: ↑{up_count} ↓{down_count} (total: {total_count})")
+
+            # Update totals
+            self.total_up_label.setText(f"↑ {total_up}")
+            self.total_down_label.setText(f"↓ {total_down}")
+            self.grand_total_label.setText(str(total_up + total_down))
+
+            print(f"📈 Grand totals: ↑{total_up} ↓{total_down} = {total_up + total_down}")
+
+        except Exception as e:
+            print(f"❌ Error updating vehicle counts: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 class RecentActivityGroup(QGroupBox):
@@ -383,55 +414,69 @@ class RecentActivityGroup(QGroupBox):
 
     def add_activity(self, vehicle_type: str, direction: str):
         """Add new activity"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        try:
+            timestamp = datetime.now().strftime("%H:%M:%S")
 
-        # Add to buffer
-        self.activity_buffer.append({
-            'time': timestamp,
-            'vehicle': vehicle_type.capitalize(),
-            'direction': '↑ Up' if direction == 'up' else '↓ Down'
-        })
+            # Add to buffer
+            self.activity_buffer.append({
+                'time': timestamp,
+                'vehicle': vehicle_type.capitalize(),
+                'direction': '↑ Up' if direction == 'up' else '↓ Down'
+            })
 
-        # Keep only recent activities
-        if len(self.activity_buffer) > self.max_activities:
-            self.activity_buffer.pop(0)
+            # Keep only recent activities
+            if len(self.activity_buffer) > self.max_activities:
+                self.activity_buffer.pop(0)
 
-        # Update table
-        self._update_table()
+            # Update table
+            self._update_table()
+
+            print(f"📝 Activity added: {vehicle_type} going {direction} at {timestamp}")
+
+        except Exception as e:
+            print(f"❌ Error adding activity: {e}")
 
     def _update_table(self):
         """Update activity table"""
-        self.activity_table.setRowCount(len(self.activity_buffer))
+        try:
+            self.activity_table.setRowCount(len(self.activity_buffer))
 
-        for row, activity in enumerate(reversed(self.activity_buffer)):
-            # Time
-            time_item = QTableWidgetItem(activity['time'])
-            time_item.setTextAlignment(Qt.AlignCenter)
-            self.activity_table.setItem(row, 0, time_item)
+            for row, activity in enumerate(reversed(self.activity_buffer)):
+                # Time
+                time_item = QTableWidgetItem(activity['time'])
+                time_item.setTextAlignment(Qt.AlignCenter)
+                self.activity_table.setItem(row, 0, time_item)
 
-            # Vehicle
-            vehicle_item = QTableWidgetItem(activity['vehicle'])
-            self.activity_table.setItem(row, 1, vehicle_item)
+                # Vehicle
+                vehicle_item = QTableWidgetItem(activity['vehicle'])
+                self.activity_table.setItem(row, 1, vehicle_item)
 
-            # Direction
-            direction_item = QTableWidgetItem(activity['direction'])
-            if 'Up' in activity['direction']:
-                direction_item.setForeground(QColor("#51cf66"))
-            else:
-                direction_item.setForeground(QColor("#ff6b6b"))
-            self.activity_table.setItem(row, 2, direction_item)
+                # Direction
+                direction_item = QTableWidgetItem(activity['direction'])
+                if 'Up' in activity['direction']:
+                    direction_item.setForeground(QColor("#51cf66"))
+                else:
+                    direction_item.setForeground(QColor("#ff6b6b"))
+                self.activity_table.setItem(row, 2, direction_item)
 
-        # Scroll to top to show latest activity
-        self.activity_table.scrollToTop()
+            # Scroll to top to show latest activity
+            self.activity_table.scrollToTop()
+
+        except Exception as e:
+            print(f"❌ Error updating activity table: {e}")
 
     def clear_activities(self):
         """Clear all activities"""
-        self.activity_buffer.clear()
-        self.activity_table.setRowCount(0)
+        try:
+            self.activity_buffer.clear()
+            self.activity_table.setRowCount(0)
+            print("🗑️ Activities cleared")
+        except Exception as e:
+            print(f"❌ Error clearing activities: {e}")
 
 
 class StatisticsPanelWidget(QWidget):
-    """Main statistics panel widget"""
+    """FIXED: Main statistics panel widget untuk PySide6"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -440,6 +485,7 @@ class StatisticsPanelWidget(QWidget):
         self.setStyleSheet("""
             QWidget {
                 background-color: #2B2B2B;
+                color: #BBBBBB;
             }
         """)
 
@@ -449,6 +495,25 @@ class StatisticsPanelWidget(QWidget):
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background-color: #4C5052;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #555555;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #4A88C7;
+            }
+        """)
 
         # Main content widget
         content_widget = QWidget()
@@ -464,6 +529,8 @@ class StatisticsPanelWidget(QWidget):
                 font-weight: bold;
                 color: #BBBBBB;
                 padding: 10px 0;
+                border-bottom: 2px solid #4A88C7;
+                margin-bottom: 10px;
             }
         """)
         layout.addWidget(title_label)
@@ -496,36 +563,50 @@ class StatisticsPanelWidget(QWidget):
         # Track previous counts for activity detection
         self.previous_counts = {}
 
+        print("✅ Statistics Panel (PySide6) initialized")
+
     def update_statistics(self, stats: Dict[str, Any], vehicle_counts: Dict[str, Dict[str, int]]):
-        """Update all statistics"""
-        # Update system metrics
-        self.system_metrics.update_metrics(stats)
+        """FIXED: Update all statistics dengan proper error handling"""
+        try:
+            print(f"📊 Statistics panel updating with: stats={stats}, counts={vehicle_counts}")
 
-        # Update vehicle counts
-        self.vehicle_counts.update_counts(vehicle_counts)
+            # Update system metrics
+            self.system_metrics.update_metrics(stats)
 
-        # Check for new activities
-        self._check_for_new_activities(vehicle_counts)
+            # Update vehicle counts
+            self.vehicle_counts.update_counts(vehicle_counts)
 
-        # Store counts for next comparison
-        self.previous_counts = vehicle_counts.copy()
+            # Check for new activities
+            self._check_for_new_activities(vehicle_counts)
+
+            # Store counts for next comparison
+            self.previous_counts = vehicle_counts.copy()
+
+        except Exception as e:
+            print(f"❌ Error updating statistics: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _check_for_new_activities(self, current_counts: Dict[str, Dict[str, int]]):
         """Check for new vehicle counting activities"""
-        for vehicle_type, counts in current_counts.items():
-            prev_counts = self.previous_counts.get(vehicle_type, {'up': 0, 'down': 0})
+        try:
+            for vehicle_type, counts in current_counts.items():
+                prev_counts = self.previous_counts.get(vehicle_type, {'up': 0, 'down': 0})
 
-            # Check for new up counts
-            if counts['up'] > prev_counts['up']:
-                diff = counts['up'] - prev_counts['up']
-                for _ in range(diff):
-                    self.recent_activity.add_activity(vehicle_type, 'up')
+                # Check for new up counts
+                if counts['up'] > prev_counts['up']:
+                    diff = counts['up'] - prev_counts['up']
+                    for _ in range(diff):
+                        self.recent_activity.add_activity(vehicle_type, 'up')
 
-            # Check for new down counts
-            if counts['down'] > prev_counts['down']:
-                diff = counts['down'] - prev_counts['down']
-                for _ in range(diff):
-                    self.recent_activity.add_activity(vehicle_type, 'down')
+                # Check for new down counts
+                if counts['down'] > prev_counts['down']:
+                    diff = counts['down'] - prev_counts['down']
+                    for _ in range(diff):
+                        self.recent_activity.add_activity(vehicle_type, 'down')
+
+        except Exception as e:
+            print(f"❌ Error checking new activities: {e}")
 
     def _periodic_update(self):
         """Periodic update for time-sensitive displays"""
@@ -534,17 +615,23 @@ class StatisticsPanelWidget(QWidget):
 
     def clear_statistics(self):
         """Clear all statistics"""
-        # Reset vehicle counts display
-        empty_counts = {
-            'car': {'up': 0, 'down': 0},
-            'motorcycle': {'up': 0, 'down': 0},
-            'bus': {'up': 0, 'down': 0},
-            'truck': {'up': 0, 'down': 0}
-        }
-        self.vehicle_counts.update_counts(empty_counts)
+        try:
+            # Reset vehicle counts display
+            empty_counts = {
+                'car': {'up': 0, 'down': 0},
+                'motorcycle': {'up': 0, 'down': 0},
+                'bus': {'up': 0, 'down': 0},
+                'truck': {'up': 0, 'down': 0}
+            }
+            self.vehicle_counts.update_counts(empty_counts)
 
-        # Clear activities
-        self.recent_activity.clear_activities()
+            # Clear activities
+            self.recent_activity.clear_activities()
 
-        # Reset previous counts
-        self.previous_counts = {}
+            # Reset previous counts
+            self.previous_counts = {}
+
+            print("🗑️ Statistics cleared")
+
+        except Exception as e:
+            print(f"❌ Error clearing statistics: {e}")

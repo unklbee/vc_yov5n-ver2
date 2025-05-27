@@ -1,13 +1,13 @@
 """
-src/gui/widgets/control_panel.py
-Control panel widget with JetBrains-style design
+src/gui/widgets/control_panel.py - FIXED untuk PySide6
+Mengganti implementasi tkinter dengan PySide6 untuk konsistensi
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
     QPushButton, QComboBox, QSpinBox, QSlider, QRadioButton,
     QButtonGroup, QLineEdit, QFileDialog, QFrame, QSizePolicy,
-    QSpacerItem, QScrollArea
+    QSpacerItem, QScrollArea, QMessageBox, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont, QIcon
@@ -51,6 +51,38 @@ class SourceSelectionGroup(QGroupBox):
         self.source_combo = QComboBox()
         self.source_combo.addItems(["File", "Webcam", "RTSP"])
         self.source_combo.setCurrentText("File")
+        self.source_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #45494A;
+                color: #BBBBBB;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 4px 8px;
+                min-width: 100px;
+            }
+            QComboBox:hover {
+                border-color: #4A88C7;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                width: 0;
+                height: 0;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #BBBBBB;
+                margin-right: 5px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #3C3F41;
+                color: #BBBBBB;
+                border: 1px solid #555555;
+                selection-background-color: #4B6EAF;
+                outline: none;
+            }
+        """)
         type_layout.addWidget(self.source_combo)
 
         layout.addLayout(type_layout)
@@ -63,8 +95,37 @@ class SourceSelectionGroup(QGroupBox):
         file_input_layout = QHBoxLayout()
         self.file_path_edit = QLineEdit()
         self.file_path_edit.setPlaceholderText("Select video file...")
+        self.file_path_edit.setStyleSheet("""
+            QLineEdit {
+                background-color: #45494A;
+                color: #BBBBBB;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 6px 8px;
+            }
+            QLineEdit:focus {
+                border-color: #4A88C7;
+            }
+        """)
+
         self.browse_button = QPushButton("Browse")
         self.browse_button.setMaximumWidth(80)
+        self.browse_button.setStyleSheet("""
+            QPushButton {
+                background-color: #365880;
+                color: white;
+                border: 1px solid #365880;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #4A7BA7;
+            }
+            QPushButton:pressed {
+                background-color: #214283;
+            }
+        """)
 
         file_input_layout.addWidget(self.file_path_edit)
         file_input_layout.addWidget(self.browse_button)
@@ -79,6 +140,18 @@ class SourceSelectionGroup(QGroupBox):
         self.camera_spinbox = QSpinBox()
         self.camera_spinbox.setRange(0, 10)
         self.camera_spinbox.setValue(0)
+        self.camera_spinbox.setStyleSheet("""
+            QSpinBox {
+                background-color: #45494A;
+                color: #BBBBBB;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QSpinBox:hover {
+                border-color: #4A88C7;
+            }
+        """)
         webcam_layout.addWidget(self.camera_spinbox)
         webcam_layout.addStretch()
 
@@ -89,6 +162,18 @@ class SourceSelectionGroup(QGroupBox):
 
         self.rtsp_url_edit = QLineEdit()
         self.rtsp_url_edit.setPlaceholderText("rtsp://username:password@ip:port/stream")
+        self.rtsp_url_edit.setStyleSheet("""
+            QLineEdit {
+                background-color: #45494A;
+                color: #BBBBBB;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 6px 8px;
+            }
+            QLineEdit:focus {
+                border-color: #4A88C7;
+            }
+        """)
         rtsp_layout.addWidget(QLabel("RTSP URL:"))
         rtsp_layout.addWidget(self.rtsp_url_edit)
 
@@ -157,39 +242,47 @@ class SourceSelectionGroup(QGroupBox):
         """Load selected source"""
         source_type = self.source_combo.currentText().lower()
 
-        if source_type == "file":
-            file_path = self.file_path_edit.text().strip()
-            if not file_path:
+        try:
+            if source_type == "file":
+                file_path = self.file_path_edit.text().strip()
+                if not file_path:
+                    QMessageBox.warning(self, "Error", "Please select a video file")
+                    return
+                if not os.path.exists(file_path):
+                    QMessageBox.warning(self, "Error", "Selected file does not exist")
+                    return
+
+                config = {
+                    'type': 'file',
+                    'file_path': file_path,
+                    'loop': True
+                }
+
+            elif source_type == "webcam":
+                config = {
+                    'type': 'webcam',
+                    'camera_id': self.camera_spinbox.value()
+                }
+
+            elif source_type == "rtsp":
+                rtsp_url = self.rtsp_url_edit.text().strip()
+                if not rtsp_url:
+                    QMessageBox.warning(self, "Error", "Please enter RTSP URL")
+                    return
+
+                config = {
+                    'type': 'rtsp',
+                    'rtsp_url': rtsp_url
+                }
+
+            else:
                 return
-            if not os.path.exists(file_path):
-                return
 
-            config = {
-                'type': 'file',
-                'file_path': file_path,
-                'loop': True
-            }
+            print(f"✅ Loading video source: {config}")
+            self.source_changed.emit(config)
 
-        elif source_type == "webcam":
-            config = {
-                'type': 'webcam',
-                'camera_id': self.camera_spinbox.value()
-            }
-
-        elif source_type == "rtsp":
-            rtsp_url = self.rtsp_url_edit.text().strip()
-            if not rtsp_url:
-                return
-
-            config = {
-                'type': 'rtsp',
-                'rtsp_url': rtsp_url
-            }
-
-        else:
-            return
-
-        self.source_changed.emit(config)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load source: {str(e)}")
 
 
 class DeviceSelectionGroup(QGroupBox):
@@ -226,7 +319,29 @@ class DeviceSelectionGroup(QGroupBox):
 
         self.cpu_radio = QRadioButton("CPU")
         self.cpu_radio.setChecked(True)
+        self.cpu_radio.setStyleSheet("""
+            QRadioButton {
+                color: #BBBBBB;
+                spacing: 8px;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+                border: 1px solid #555555;
+                border-radius: 8px;
+                background-color: #45494A;
+            }
+            QRadioButton::indicator:hover {
+                border-color: #4A88C7;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #4A88C7;
+                border-color: #4A88C7;
+            }
+        """)
+
         self.gpu_radio = QRadioButton("GPU")
+        self.gpu_radio.setStyleSheet(self.cpu_radio.styleSheet())
 
         self.device_group.addButton(self.cpu_radio, 0)
         self.device_group.addButton(self.gpu_radio, 1)
@@ -302,6 +417,27 @@ class PerformanceGroup(QGroupBox):
         self.frame_skip_slider.setValue(2)
         self.frame_skip_slider.setTickPosition(QSlider.TicksBelow)
         self.frame_skip_slider.setTickInterval(1)
+        self.frame_skip_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                background-color: #4C5052;
+                height: 6px;
+                border-radius: 3px;
+            }
+            QSlider::handle:horizontal {
+                background-color: #4A88C7;
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                margin: -5px 0;
+            }
+            QSlider::handle:horizontal:hover {
+                background-color: #5C9BD1;
+            }
+            QSlider::sub-page:horizontal {
+                background-color: #4A88C7;
+                border-radius: 3px;
+            }
+        """)
 
         self.frame_skip_label = QLabel("2")
         self.frame_skip_label.setMinimumWidth(20)
@@ -313,6 +449,7 @@ class PerformanceGroup(QGroupBox):
                 border-radius: 3px;
                 padding: 2px 6px;
                 font-weight: bold;
+                color: #BBBBBB;
             }
         """)
 
@@ -457,8 +594,85 @@ class DetectionControlGroup(QGroupBox):
             self.status_text.setStyleSheet("color: #9E9E9E; font-weight: 500;")
 
 
+class StatisticsDisplayGroup(QGroupBox):
+    """TAMBAHAN: Display basic statistics di control panel"""
+
+    def __init__(self, parent=None):
+        super().__init__("Quick Stats", parent)
+
+        self.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #555555;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                color: #FFC66D;
+                background-color: #2B2B2B;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+
+        # FPS display
+        fps_layout = QHBoxLayout()
+        fps_layout.addWidget(QLabel("FPS:"))
+        self.fps_label = QLabel("0.0")
+        self.fps_label.setStyleSheet("font-weight: bold; color: #4A88C7;")
+        fps_layout.addWidget(self.fps_label)
+        fps_layout.addStretch()
+        layout.addLayout(fps_layout)
+
+        # ROI status
+        roi_layout = QHBoxLayout()
+        roi_layout.addWidget(QLabel("ROI:"))
+        self.roi_status_label = QLabel("OFF")
+        self.roi_status_label.setStyleSheet("font-weight: bold; color: #ff6b6b;")
+        roi_layout.addWidget(self.roi_status_label)
+        roi_layout.addStretch()
+        layout.addLayout(roi_layout)
+
+        # Total vehicles
+        total_layout = QHBoxLayout()
+        total_layout.addWidget(QLabel("Total:"))
+        self.total_label = QLabel("0")
+        self.total_label.setStyleSheet("font-weight: bold; color: #51cf66;")
+        total_layout.addWidget(self.total_label)
+        total_layout.addStretch()
+        layout.addLayout(total_layout)
+
+    def update_stats(self, stats: Dict[str, Any], vehicle_counts: Dict[str, Dict[str, int]]):
+        """Update quick stats display"""
+        try:
+            # Update FPS
+            fps = stats.get('fps', 0.0)
+            self.fps_label.setText(f"{fps:.1f}")
+
+            # Update ROI status
+            roi_enabled = stats.get('roi_enabled', False)
+            if roi_enabled:
+                self.roi_status_label.setText("ON")
+                self.roi_status_label.setStyleSheet("font-weight: bold; color: #51cf66;")
+            else:
+                self.roi_status_label.setText("OFF")
+                self.roi_status_label.setStyleSheet("font-weight: bold; color: #ff6b6b;")
+
+            # Update total vehicles
+            total = sum(sum(counts.values()) for counts in vehicle_counts.values())
+            self.total_label.setText(str(total))
+
+        except Exception as e:
+            print(f"Quick stats update error: {e}")
+
+
 class ControlPanelWidget(QWidget):
-    """Main control panel widget"""
+    """Main control panel widget - FIXED untuk PySide6"""
 
     # Signals
     source_changed = Signal(dict)
@@ -476,6 +690,7 @@ class ControlPanelWidget(QWidget):
         self.setStyleSheet("""
             QWidget {
                 background-color: #2B2B2B;
+                color: #BBBBBB;
             }
         """)
 
@@ -485,6 +700,25 @@ class ControlPanelWidget(QWidget):
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background-color: #4C5052;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #555555;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #4A88C7;
+            }
+        """)
 
         # Main content widget
         content_widget = QWidget()
@@ -500,6 +734,8 @@ class ControlPanelWidget(QWidget):
                 font-weight: bold;
                 color: #BBBBBB;
                 padding: 10px 0;
+                border-bottom: 2px solid #4A88C7;
+                margin-bottom: 10px;
             }
         """)
         layout.addWidget(title_label)
@@ -509,11 +745,13 @@ class ControlPanelWidget(QWidget):
         self.device_group = DeviceSelectionGroup()
         self.performance_group = PerformanceGroup()
         self.control_group = DetectionControlGroup()
+        self.stats_group = StatisticsDisplayGroup()  # TAMBAHAN
 
         layout.addWidget(self.source_group)
         layout.addWidget(self.device_group)
         layout.addWidget(self.performance_group)
         layout.addWidget(self.control_group)
+        layout.addWidget(self.stats_group)  # TAMBAHAN
 
         # Add stretch to push everything to the top
         layout.addStretch()
@@ -527,7 +765,7 @@ class ControlPanelWidget(QWidget):
         main_layout.addWidget(scroll_area)
 
         # Connect signals
-        self.source_group.source_changed.connect(self.source_changed.emit)
+        self.source_group.source_changed.connect(self._on_source_changed)
         self.device_group.device_changed.connect(self.device_changed.emit)
         self.performance_group.frame_skip_changed.connect(self.frame_skip_changed.emit)
         self.control_group.detection_toggled.connect(self.detection_toggled.emit)
@@ -535,16 +773,51 @@ class ControlPanelWidget(QWidget):
         # Load initial configuration
         self._load_config()
 
+        print("✅ Control Panel (PySide6) initialized")
+
     def _load_config(self):
         """Load configuration into controls"""
-        config = self.config_manager.config
+        try:
+            config = self.config_manager.config
 
-        # Set device
-        self.device_group.set_device(config.detection.device)
+            # Set device
+            self.device_group.set_device(config.detection.device)
 
-        # Set frame skip
-        self.performance_group.set_frame_skip(config.detection.frame_skip)
+            # Set frame skip
+            self.performance_group.set_frame_skip(config.detection.frame_skip)
+
+            print(f"✅ Control panel config loaded: device={config.detection.device}, skip={config.detection.frame_skip}")
+
+        except Exception as e:
+            print(f"⚠️ Error loading control panel config: {e}")
+
+    def _on_source_changed(self, source_config: dict):
+        """Handle source change with validation"""
+        try:
+            print(f"📹 Source changed: {source_config}")
+            self.source_changed.emit(source_config)
+        except Exception as e:
+            print(f"❌ Error handling source change: {e}")
 
     def set_detection_state(self, running: bool):
         """Set detection state"""
-        self.control_group.set_detection_state(running)
+        try:
+            self.control_group.set_detection_state(running)
+            print(f"🎮 Detection state changed: {'Running' if running else 'Stopped'}")
+        except Exception as e:
+            print(f"❌ Error setting detection state: {e}")
+
+    def update_statistics(self, stats: Dict[str, Any], vehicle_counts: Dict[str, Dict[str, int]]):
+        """TAMBAHAN: Update quick statistics display"""
+        try:
+            self.stats_group.update_stats(stats, vehicle_counts)
+        except Exception as e:
+            print(f"❌ Error updating control panel stats: {e}")
+
+    def get_current_frame_skip(self) -> int:
+        """Get current frame skip value"""
+        try:
+            return self.performance_group.frame_skip_slider.value()
+        except Exception as e:
+            print(f"❌ Error getting frame skip: {e}")
+            return 2
