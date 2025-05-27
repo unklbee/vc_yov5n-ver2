@@ -1,0 +1,65 @@
+## 4. Optimized Configuration (`config/optimized.yaml`)
+
+  ```yaml
+# Optimized configuration for maximum performance
+
+detection:
+  model_path: "models/yolov5n-416.xml"
+  device: "GPU"  # Use GPU for better performance
+  input_shape: [384, 384]  # Smaller input for speed
+  conf_threshold: 0.3  # Slightly higher to reduce false positives
+  nms_threshold: 0.5
+  frame_skip: 2  # Process every 2nd frame
+
+  # Advanced optimizations
+  batch_size: 1
+  async_inference: true
+  precision: "FP16"  # Half precision for speed
+
+ui:
+  window_width: 1200
+  window_height: 800
+  theme: "dark"
+  auto_save: false  # Disable for performance
+
+  # UI optimizations
+  max_fps: 30
+  vsync: false
+  hardware_acceleration: true
+
+storage:
+  enabled: false  # Disable storage for maximum performance
+  save_interval: 600
+  output_dir: "data/counts"
+  format: "json"
+
+  # Storage optimizations
+  async_save: true
+  compression: true
+
+performance:
+  # Adaptive performance management
+  target_fps: 30
+  auto_adjust: true
+
+  # Memory management
+  max_memory_percent: 75
+  cleanup_interval: 30
+
+  # Threading
+  max_worker_threads: 4
+  io_threads: 2
+
+advanced:
+  # System optimizations
+  process_priority: "high"
+  cpu_affinity: []  # Bind to specific CPU cores if needed
+
+  # Algorithm optimizations
+  roi_only: true  # Process only ROI when set
+  skip_tracking: false
+  trail_length: 15  # Reduced trail length
+
+  # Debugging
+  log_level: "WARNING"  # Reduce logging for performance
+  profile_performance: false

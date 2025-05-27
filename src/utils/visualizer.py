@@ -1,61 +1,88 @@
-"""
-src/utils/visualizer.py
-Simple visualization utilities for detection results
-"""
+## Visualization Helper (`src/utils/visualizer.py`)
 
+"""Lightweight visualization utilities"""
 import cv2
 import numpy as np
 from typing import List, Dict, Any
 
-
 class Visualizer:
-    """Simple visualization utilities for detection results"""
-    
-    def __init__(self):
-        # Color scheme for different vehicle types
-        self.colors = {
-            'car': (0, 255, 0),        # Green
-            'motorcycle': (255, 255, 0), # Yellow
-            'bus': (255, 0, 0),        # Red
-            'truck': (0, 0, 255),      # Blue
-            'default': (128, 128, 128)  # Gray
-        }
-        
-        # Line colors
-        self.roi_color = (0, 255, 0)      # Green
-        self.line_color = (0, 255, 255)   # Yellow
-    
-    def draw_detections(self, frame: np.ndarray, detections: List[Dict], detector) -> np.ndarray:
-        """Draw all detection results on frame"""
+    """Lightweight visualization for detection results"""
+
+    # Color scheme
+    COLORS = {
+        'car': (0, 255, 0),
+        'motorcycle': (255, 255, 0),
+        'bus': (255, 0, 0),
+        'truck': (0, 0, 255),
+        'default': (128, 128, 128)
+    }
+
+    @classmethod
+    def draw_detections(cls, frame: np.ndarray, detections: List[Dict],
+                        stats: Dict[str, Any]) -> np.ndarray:
+        """Draw detection results on frame"""
         result_frame = frame.copy()
-        
-        try:
-            # Draw simple vehicle detections
-            for det in detections:
-                x1, y1, x2, y2 = det['bbox']
-                class_name = det.get('class_name', 'vehicle')
-                track_id = det.get('track_id', -1)
-                
-                # Get color for vehicle type
-                color = self.colors.get(class_name, self.colors['default'])
-                
-                # Draw bounding box
-                cv2.rectangle(result_frame, (x1, y1), (x2, y2), color, 2)
-                
-                # Draw label
-                label = f"{class_name}"
-                if track_id > 0:
-                    label += f" #{track_id}"
-                
-                cv2.putText(result_frame, label, (x1, y1-10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-            
-            # Draw simple stats
-            fps = getattr(detector, 'get_fps', lambda: 0)()
-            cv2.putText(result_frame, f"FPS: {fps:.1f}", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            
-        except Exception as e:
-            print(f"Visualization error: {e}")
-        
+
+        # Draw detections
+        for detection in detections:
+            cls._draw_detection(result_frame, detection)
+
+        # Draw stats overlay
+        cls._draw_stats_overlay(result_frame, stats, len(detections))
+
         return result_frame
+
+    @classmethod
+    def _draw_detection(cls, frame: np.ndarray, detection: Dict):
+        """Draw single detection"""
+        bbox = detection['bbox']
+        class_name = detection['class_name']
+        confidence = detection['confidence']
+        track_id = detection.get('track_id', -1)
+
+        x1, y1, x2, y2 = bbox
+        color = cls.COLORS.get(class_name, cls.COLORS['default'])
+
+        # Draw bounding box
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+
+        # Draw label
+        label = f"{class_name}"
+        if track_id > 0:
+            label += f" #{track_id}"
+        label += f" {confidence:.2f}"
+
+        # Label background
+        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+        cv2.rectangle(frame, (x1, y1 - label_size[1] - 10),
+                      (x1 + label_size[0], y1), color, -1)
+
+        # Label text
+        cv2.putText(frame, label, (x1, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    @classmethod
+    def _draw_stats_overlay(cls, frame: np.ndarray, stats: Dict[str, Any],
+                            detection_count: int):
+        """Draw statistics overlay"""
+        h, w = frame.shape[:2]
+
+        # Stats background
+        cv2.rectangle(frame, (10, 10), (200, 100), (0, 0, 0), -1)
+        cv2.rectangle(frame, (10, 10), (200, 100), (0, 255, 0), 2)
+
+        # Stats text
+        fps = stats.get('fps', 0)
+        proc_time = stats.get('processing_time', 0) * 1000  # Convert to ms
+
+        stats_lines = [
+            f"FPS: {fps:.1f}",
+            f"Processing: {proc_time:.1f}ms",
+            f"Detections: {detection_count}",
+            f"ROI: {'ON' if stats.get('roi_enabled', False) else 'OFF'}"
+        ]
+
+        for i, line in enumerate(stats_lines):
+            y_pos = 30 + i * 20
+            cv2.putText(frame, line, (15, y_pos),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
