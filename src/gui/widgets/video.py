@@ -96,7 +96,7 @@ class VideoCanvas(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press for drawing"""
-        if not self.drawing_mode or not self.current_frame:
+        if not self.drawing_mode or self.current_frame is None:
             return
 
         # Convert widget coordinates to image coordinates
@@ -129,7 +129,7 @@ class VideoCanvas(QLabel):
 
     def _widget_to_image_coords(self, widget_point: QPoint) -> Optional[Tuple[int, int]]:
         """Convert widget coordinates to image coordinates"""
-        if not self.current_frame or self.scale_factor == 0:
+        if self.current_frame is None or self.scale_factor == 0:
             return None
 
         # Get pixmap rect (centered in widget)

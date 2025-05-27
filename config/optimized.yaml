@@ -7,7 +7,7 @@ detection:
   model_path: "models/yolov5n-416.xml"
   device: "GPU"  # Use GPU for better performance
   input_shape: [384, 384]  # Smaller input for speed
-  conf_threshold: 0.3  # Slightly higher to reduce false positives
+  conf_threshold: 0.4  # Slightly higher to reduce false positives
   nms_threshold: 0.5
   frame_skip: 2  # Process every 2nd frame
 

@@ -3,7 +3,6 @@
 Vehicle Detection System - Fixed Entry Point
 """
 import sys
-import os
 import argparse
 from pathlib import Path
 
@@ -53,7 +52,7 @@ def run_gui_mode(config_path: str = None):
     """Run GUI mode"""
     try:
         # Fix: Use absolute imports
-        from gui.app import run_app
+        from src.gui.app import run_app
         print("🚀 Starting GUI mode...")
         run_app(config_path)
     except ImportError as e:

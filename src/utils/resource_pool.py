@@ -5,7 +5,7 @@ Resource pooling for better memory management
 """
 import numpy as np
 from collections import deque
-from typing import Deque, Tuple, Optional
+from typing import Deque, Tuple, Optional, Dict
 import threading
 
 class FramePool:
