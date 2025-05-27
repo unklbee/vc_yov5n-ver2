@@ -1,0 +1,30 @@
+api:
+  api_key: ''
+  enabled: false
+  endpoint: ''
+  send_interval: 60
+  timeout: 30
+data_storage:
+  enabled: true
+  format: json
+  output_directory: data/counts
+  save_interval: 300
+detection:
+  conf_threshold: 0.25
+  device: CPU
+  frame_skip: 2
+  input_shape:
+  - 416
+  - 416
+  model_path: models/yolov5n-416.xml
+  nms_threshold: 0.5
+tracker:
+  iou_threshold: 0.3
+  max_age: 1
+  min_hits: 3
+  trail_length: 30
+ui:
+  default_height: 800
+  default_width: 1200
+  theme: dark
+  window_title: Vehicle Detection System
