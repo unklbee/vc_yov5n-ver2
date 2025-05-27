@@ -1,7 +1,7 @@
 detection:
   conf_threshold: 0.25
   device: GPU
-  frame_skip: 1
+  frame_skip: 10
   input_shape:
   - 416
   - 416

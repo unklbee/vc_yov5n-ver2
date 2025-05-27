@@ -1,6 +1,7 @@
-## Statistics Widget (`src/gui/widgets/stats.py`)
+"""
+Fixed src/gui/widgets/stats.py - Sekarang counting akan tampil di GUI
+"""
 
-"""Simplified statistics widget"""
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea,
     QHBoxLayout, QProgressBar
@@ -59,7 +60,7 @@ class StatCard(QFrame):
 
 
 class StatsWidget(QWidget):
-    """Main statistics widget"""
+    """Fixed stats widget yang menampilkan counting results"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -72,8 +73,9 @@ class StatsWidget(QWidget):
             }
         """)
 
-        # Vehicle counts tracking
+        # PERBAIKAN: Tracking counting data dari detector
         self.vehicle_counts = defaultdict(lambda: {'up': 0, 'down': 0})
+        self.total_crossings = 0
 
         self.setup_ui()
 
@@ -101,6 +103,9 @@ class StatsWidget(QWidget):
 
         # Detection stats
         layout.addWidget(self.create_detection_section())
+
+        # PERBAIKAN: Counting stats section
+        layout.addWidget(self.create_counting_section())
 
         # Vehicle counts
         layout.addWidget(self.create_vehicle_counts_section())
@@ -186,6 +191,41 @@ class StatsWidget(QWidget):
 
         return section
 
+    def create_counting_section(self) -> QFrame:
+        """PERBAIKAN: Create counting statistics section"""
+        section = QFrame()
+        section.setStyleSheet("""
+            QFrame {
+                background-color: #2B2B2B;
+                border: 1px solid #214283;
+                border-radius: 6px;
+                padding: 10px;
+            }
+        """)
+
+        layout = QVBoxLayout(section)
+
+        # Section title
+        title = QLabel("🚦 Vehicle Counting")
+        title.setStyleSheet("color: #4A88C7; font-weight: bold; font-size: 14px; margin-bottom: 10px;")
+        layout.addWidget(title)
+
+        # Counting cards
+        cards_layout = QVBoxLayout()
+        cards_layout.setSpacing(5)
+
+        self.total_crossings_card = StatCard("Total Crossings", "0")
+        self.up_crossings_card = StatCard("↑ Up", "0")
+        self.down_crossings_card = StatCard("↓ Down", "0")
+
+        cards_layout.addWidget(self.total_crossings_card)
+        cards_layout.addWidget(self.up_crossings_card)
+        cards_layout.addWidget(self.down_crossings_card)
+
+        layout.addLayout(cards_layout)
+
+        return section
+
     def create_vehicle_counts_section(self) -> QFrame:
         """Create vehicle counts section"""
         section = QFrame()
@@ -201,7 +241,7 @@ class StatsWidget(QWidget):
         layout = QVBoxLayout(section)
 
         # Section title
-        title = QLabel("Vehicle Counts")
+        title = QLabel("Vehicle Types")
         title.setStyleSheet("color: #FFC66D; font-weight: bold; font-size: 14px; margin-bottom: 10px;")
         layout.addWidget(title)
 
@@ -239,34 +279,6 @@ class StatsWidget(QWidget):
 
             self.vehicle_labels[vehicle_type] = count_label
             layout.addWidget(vehicle_frame)
-
-        # Total count
-        self.total_frame = QFrame()
-        self.total_frame.setStyleSheet("""
-            QFrame {
-                background-color: #214283;
-                border: 1px solid #4A88C7;
-                border-radius: 4px;
-                padding: 8px;
-                margin: 5px 0;
-            }
-        """)
-
-        total_layout = QHBoxLayout(self.total_frame)
-        total_layout.setContentsMargins(8, 4, 8, 4)
-
-        total_title = QLabel("TOTAL")
-        total_title.setStyleSheet("color: white; font-weight: bold;")
-
-        self.total_count_label = QLabel("0")
-        self.total_count_label.setStyleSheet("color: white; font-weight: bold; font-size: 14px;")
-        self.total_count_label.setAlignment(Qt.AlignRight)
-
-        total_layout.addWidget(total_title)
-        total_layout.addStretch()
-        total_layout.addWidget(self.total_count_label)
-
-        layout.addWidget(self.total_frame)
 
         return section
 
@@ -306,7 +318,7 @@ class StatsWidget(QWidget):
         return section
 
     def update_detection_stats(self, stats: Dict[str, Any], detections: List[Dict]):
-        """Update detection statistics"""
+        """PERBAIKAN: Update detection statistics dengan counting data"""
         # Update performance
         fps = stats.get('fps', 0)
         processing_time = stats.get('processing_time', 0) * 1000  # Convert to ms
@@ -337,29 +349,104 @@ class StatsWidget(QWidget):
         line_count = stats.get('line_count', 0)
         self.lines_card.update_value(str(line_count))
 
-        # Update vehicle counts (simplified - would need actual counting logic)
-        self._update_vehicle_counts(detections)
+        # PERBAIKAN: Update counting statistics dari detector stats
+        self._update_counting_stats(stats)
 
-    def _update_vehicle_counts(self, detections: List[Dict]):
-        """Update vehicle counts display"""
-        # Count current detections by type
-        current_counts = defaultdict(int)
-        for detection in detections:
-            vehicle_type = detection.get('class_name', 'unknown')
-            if vehicle_type in self.vehicle_labels:
-                current_counts[vehicle_type] += 1
+        # PERBAIKAN: Update vehicle counts dari detector data
+        self._update_vehicle_counts_from_stats(stats)
+        self._update_counting_display(stats)
 
-        # Update labels
-        total = 0
+    def _update_counting_display(self, stats: Dict[str, Any]):
+        """TAMBAHAN METHOD BARU: Update counting display dari stats"""
+        try:
+            # Get counting data dari stats
+            vehicle_counts = stats.get('vehicle_counts', {})
+            total_crossings = stats.get('total_crossings', 0)
+
+            if total_crossings > 0:
+                print(f"📊 GUI Update: Total crossings = {total_crossings}")
+
+            # Update vehicle counts jika ada data counting
+            if vehicle_counts:
+                for vehicle_type, counts in vehicle_counts.items():
+                    if vehicle_type in self.vehicle_labels:
+                        up_count = counts.get('up', 0)
+                        down_count = counts.get('down', 0)
+                        total_type = up_count + down_count
+
+                        # Update label
+                        label_text = f"↑{up_count} ↓{down_count}"
+                        if total_type > 0:
+                            label_text += f" ({total_type})"
+
+                        self.vehicle_labels[vehicle_type].setText(label_text)
+
+                        # Highlight if active
+                        if total_type > 0:
+                            self.vehicle_labels[vehicle_type].setStyleSheet(
+                                "color: #4A88C7; font-size: 12px; font-weight: bold;"
+                            )
+
+                # Update total count label if exists
+                if hasattr(self, 'total_count_label'):
+                    self.total_count_label.setText(str(total_crossings))
+
+        except Exception as e:
+            print(f"⚠️ Counting display update error: {e}")
+
+    def _update_counting_stats(self, stats: Dict[str, Any]):
+        """PERBAIKAN: Update counting stats dari detector results"""
+        # Get counting data dari stats
+        vehicle_counts = stats.get('vehicle_counts', {})
+        total_crossings = stats.get('total_crossings', 0)
+        crossing_events = stats.get('crossing_events', [])
+
+        # Update total crossings
+        self.total_crossings = total_crossings
+        self.total_crossings_card.update_value(str(total_crossings), "#4A88C7")
+
+        # Calculate up/down totals
+        total_up = 0
+        total_down = 0
+
+        for vehicle_type, counts in vehicle_counts.items():
+            total_up += counts.get('up', 0)
+            total_down += counts.get('down', 0)
+
+        # Update direction cards
+        self.up_crossings_card.update_value(str(total_up), "#51cf66")
+        self.down_crossings_card.update_value(str(total_down), "#ff6b6b")
+
+        # Print debug info untuk memastikan data sampai
+        if crossing_events:
+            print(f"📊 GUI Stats Update: Total={total_crossings}, Up={total_up}, Down={total_down}")
+
+    def _update_vehicle_counts_from_stats(self, stats: Dict[str, Any]):
+        """PERBAIKAN: Update vehicle counts dari detector stats, bukan local tracking"""
+        # Get vehicle counts dari detector
+        vehicle_counts = stats.get('vehicle_counts', {})
+
+        # Update stored vehicle counts
+        self.vehicle_counts = vehicle_counts
+
+        # Update labels untuk setiap vehicle type
         for vehicle_type, label in self.vehicle_labels.items():
-            up_count = self.vehicle_counts[vehicle_type]['up']
-            down_count = self.vehicle_counts[vehicle_type]['down']
-            current = current_counts[vehicle_type]
+            if vehicle_type in vehicle_counts:
+                up_count = vehicle_counts[vehicle_type].get('up', 0)
+                down_count = vehicle_counts[vehicle_type].get('down', 0)
+                total_type = up_count + down_count
 
-            label.setText(f"↑{up_count} ↓{down_count} ({current})")
-            total += up_count + down_count
+                # Update label dengan format yang jelas
+                label.setText(f"↑{up_count} ↓{down_count} ({total_type})")
 
-        self.total_count_label.setText(str(total))
+                # Color coding berdasarkan activity
+                if total_type > 0:
+                    label.setStyleSheet("color: #4A88C7; font-size: 12px; font-weight: bold;")
+                else:
+                    label.setStyleSheet("color: #9E9E9E; font-size: 12px;")
+            else:
+                label.setText("↑0 ↓0 (0)")
+                label.setStyleSheet("color: #9E9E9E; font-size: 12px;")
 
     def update_video_info(self, properties: Dict[str, Any]):
         """Update video information"""
@@ -379,11 +466,17 @@ class StatsWidget(QWidget):
     def clear_vehicle_counts(self):
         """Clear vehicle counts"""
         self.vehicle_counts = defaultdict(lambda: {'up': 0, 'down': 0})
+        self.total_crossings = 0
 
+        # Reset counting cards
+        self.total_crossings_card.update_value("0", "#9E9E9E")
+        self.up_crossings_card.update_value("0", "#9E9E9E")
+        self.down_crossings_card.update_value("0", "#9E9E9E")
+
+        # Reset vehicle type labels
         for label in self.vehicle_labels.values():
             label.setText("↑0 ↓0 (0)")
-
-        self.total_count_label.setText("0")
+            label.setStyleSheet("color: #9E9E9E; font-size: 12px;")
 
     def reset(self):
         """Reset all statistics"""
@@ -396,10 +489,16 @@ class StatsWidget(QWidget):
         self.roi_card.update_value("OFF", "#9E9E9E")
         self.lines_card.update_value("0")
 
-        # Reset counts
+        # Reset counting
         self.clear_vehicle_counts()
 
         # Reset video info
         self.resolution_label.setText("Resolution: N/A")
         self.video_fps_label.setText("Video FPS: N/A")
         self.frame_count_label.setText("Frame: 0")
+
+    def force_update_display(self):
+        """Force update display untuk debugging"""
+        self.update()
+        self.repaint()
+        print(f"🔄 GUI Display Force Updated - Total Crossings: {self.total_crossings}")

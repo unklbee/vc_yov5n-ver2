@@ -1,6 +1,8 @@
-## 1. Simplified Detector (`src/core/detector.py`)
+"""
+Complete src/core/detector.py - Working Detection + Counting
+Berdasarkan file original dengan minimal fixes untuk counting
+"""
 
-"""Optimized Vehicle Detector - Lightweight and Efficient"""
 import cv2
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Union
@@ -9,7 +11,7 @@ import time
 from pathlib import Path
 
 class VehicleDetector:
-    """Lightweight vehicle detector with OpenVINO support"""
+    """Lightweight vehicle detector with OpenVINO support and counting"""
 
     # Class constants
     VEHICLE_CLASSES = {2: 'car', 3: 'motorcycle', 5: 'bus', 7: 'truck'}
@@ -35,6 +37,10 @@ class VehicleDetector:
         # Lazy-loaded components
         self._model = None
         self._tracker = None
+
+        # TAMBAHAN: Counting system
+        self.line_counters = []  # For LineCounter instances
+        self.vehicle_counts = defaultdict(lambda: {'up': 0, 'down': 0})
 
     @property
     def model(self):
@@ -80,8 +86,8 @@ class VehicleDetector:
         # Track vehicles
         tracked_detections = self.tracker.update(detections)
 
-        # Update counters
-        self._update_counters(tracked_detections)
+        # Update counters - FIXED
+        crossing_events = self._update_counters(tracked_detections)
 
         # Calculate stats
         processing_time = time.time() - start_time
@@ -92,7 +98,11 @@ class VehicleDetector:
             'processing_time': processing_time,
             'detection_count': len(tracked_detections),
             'roi_enabled': self.roi_mask is not None,
-            'line_count': len(self.counting_lines)
+            'line_count': len(self.counting_lines),
+            # TAMBAHAN: counting stats
+            'vehicle_counts': dict(getattr(self, 'vehicle_counts', {})),
+            'crossing_events': crossing_events,
+            'total_crossings': sum(sum(counts.values()) for counts in getattr(self, 'vehicle_counts', {}).values())
         }
 
         return tracked_detections, stats
@@ -125,6 +135,11 @@ class VehicleDetector:
     def _postprocess(self, output: np.ndarray, original_shape: Tuple) -> List[Dict]:
         """Postprocess model output"""
         detections = []
+
+        # Handle MockModel case
+        if isinstance(self.model, MockModel):
+            return self.model.generate_mock_detections(original_shape)
+
         predictions = output[0]  # Remove batch dimension
 
         # Filter by confidence
@@ -218,14 +233,40 @@ class VehicleDetector:
 
         return intersection / (union + 1e-6)
 
-    def _update_counters(self, detections: List[Dict]):
-        """Update vehicle counters"""
-        # Simplified counting logic
-        for detection in detections:
-            track_id = detection.get('track_id', -1)
-            if track_id > 0:  # Valid track
-                # Count logic would go here
-                pass
+    def _update_counters(self, detections: List[Dict]) -> List[Dict]:
+        """FIXED: Update counting system"""
+        crossing_events = []
+
+        # Jika tidak ada line counter atau detections, return kosong
+        if not hasattr(self, 'line_counters') or not self.line_counters or not detections:
+            return crossing_events
+
+        # Update setiap line counter
+        for line_counter in self.line_counters:
+            try:
+                # Update line counter dengan detections
+                line_crossings = line_counter.update(detections)
+
+                # Process hasil crossing
+                for vehicle_type, direction in line_crossings:
+                    # Update global counts
+                    self.vehicle_counts[vehicle_type][direction] += 1
+
+                    # Create crossing event
+                    crossing_event = {
+                        'vehicle_type': vehicle_type,
+                        'direction': direction,
+                        'line_id': line_counter.line_id,
+                        'timestamp': time.time()
+                    }
+                    crossing_events.append(crossing_event)
+
+                    print(f"🚦 COUNTING: {vehicle_type} {direction} on line {line_counter.line_id}")
+            except Exception as e:
+                print(f"⚠️ Line counter error: {e}")
+                continue
+
+        return crossing_events
 
     def set_roi(self, points: List[Tuple[int, int]], frame_shape: Tuple[int, int]) -> bool:
         """Set Region of Interest"""
@@ -248,18 +289,40 @@ class VehicleDetector:
             return False  # Points too close
 
         line_id = len(self.counting_lines)
+
+        # Add to basic list (for compatibility)
         self.counting_lines.append({
             'id': line_id,
             'point1': point1,
             'point2': point2,
             'crossings': {'up': 0, 'down': 0}
         })
+
+        # TAMBAHAN: Create LineCounter instance
+        try:
+            # Import LineCounter hanya saat dibutuhkan
+            from .counter import LineCounter
+            line_counter = LineCounter(line_id, point1, point2)
+
+            # Initialize line_counters jika belum ada
+            if not hasattr(self, 'line_counters'):
+                self.line_counters = []
+
+            self.line_counters.append(line_counter)
+            print(f"✅ LineCounter added for line {line_id}")
+        except ImportError:
+            print(f"⚠️ LineCounter not available for line {line_id}")
+        except Exception as e:
+            print(f"⚠️ Error adding LineCounter: {e}")
+
         return True
 
     def clear_roi_and_lines(self):
         """Clear ROI and counting lines"""
         self.roi_mask = None
         self.counting_lines = []
+        # TAMBAHAN: Clear counting system
+        self.line_counters = []
         self.vehicle_counts = defaultdict(lambda: {'up': 0, 'down': 0})
 
 
@@ -306,8 +369,36 @@ class OpenVINOModel:
 class MockModel:
     """Mock model for testing"""
 
+    def __init__(self):
+        self.frame_count = 0
+
     def predict(self, input_tensor: np.ndarray) -> np.ndarray:
         """Return mock predictions"""
         batch_size = input_tensor.shape[0]
         # Mock YOLO output: [batch, 25200, 85] for 80 classes + 5 (x,y,w,h,conf)
         return np.random.random((batch_size, 25200, 85)) * 0.1  # Low confidence values
+
+    def generate_mock_detections(self, original_shape: Tuple) -> List[Dict]:
+        """Generate moving mock detections untuk testing"""
+        self.frame_count += 1
+        h, w = original_shape[:2]
+        detections = []
+
+        # Create 2 moving vehicles for testing
+        for i in range(2):
+            # Simulate movement across screen
+            x = int((self.frame_count * (3 + i) + i * 200) % (w - 100))
+            y = int(h // 2 + i * 100 - 50)
+
+            # Ensure within bounds
+            y = max(50, min(y, h - 100))
+
+            detection = {
+                'bbox': [x, y, x + 80, y + 50],
+                'confidence': 0.8 + i * 0.1,
+                'class_id': 2,
+                'class_name': 'car'
+            }
+            detections.append(detection)
+
+        return detections

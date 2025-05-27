@@ -1,6 +1,6 @@
 """
-src/core/line_counter.py
-Refactored berdasarkan LineCounter dari newdetrev1.py yang sudah terbukti bekerja
+Complete src/core/counter.py
+LineCounter class extracted dari newdetrev1.py yang working
 """
 
 from typing import List, Dict, Tuple
@@ -8,7 +8,7 @@ from collections import defaultdict
 
 
 class LineCounter:
-    """Count vehicles crossing a line - exact copy dari newdetrev1.py dengan improvements"""
+    """Count vehicles crossing a line - exact copy dari newdetrev1.py yang bekerja"""
 
     def __init__(self, line_id: int, point1: Tuple[int, int], point2: Tuple[int, int]):
         self.line_id = line_id
@@ -16,12 +16,12 @@ class LineCounter:
         self.point2 = point2
         self.tracked_vehicles = {}
 
-        # IMPROVED: Track counts per vehicle type untuk GUI integration
+        # Track counts per vehicle type
         self.vehicle_counts = defaultdict(lambda: {'up': 0, 'down': 0})
         self.total_crossings = {'up': 0, 'down': 0}
 
     def update(self, detections: List[Dict]) -> List[Tuple[str, str]]:
-        """Update line counting - berdasarkan newdetrev1.py"""
+        """Update line counting - berdasarkan newdetrev1.py yang working"""
         counts = []
 
         for det in detections:
@@ -77,7 +77,7 @@ class LineCounter:
             return 0
 
     def get_statistics(self) -> Dict:
-        """Get line crossing statistics untuk GUI integration"""
+        """Get line crossing statistics"""
         return {
             'line_id': self.line_id,
             'point1': self.point1,

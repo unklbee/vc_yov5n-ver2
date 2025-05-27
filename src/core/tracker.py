@@ -1,16 +1,18 @@
-## Simplified Tracker (`src/core/tracker.py`)
+"""
+Fixed src/core/tracker.py - Parameter yang lebih baik untuk counting
+"""
 
-"""Lightweight vehicle tracker"""
 import numpy as np
 from typing import List, Dict, Tuple
 from collections import defaultdict, deque
 
 class SimpleTracker:
-    """Lightweight object tracker"""
+    """Fixed tracker dengan parameter yang lebih baik untuk counting"""
 
-    def __init__(self, max_age: int = 5, min_hits: int = 3, iou_threshold: float = 0.3):
-        self.max_age = max_age
-        self.min_hits = min_hits
+    def __init__(self, max_age: int = 10, min_hits: int = 1, iou_threshold: float = 0.3):
+        # PERBAIKAN: Parameter yang lebih baik
+        self.max_age = max_age          # Lebih lama (was 5)
+        self.min_hits = min_hits        # Langsung assign ID (was 3)
         self.iou_threshold = iou_threshold
 
         self.tracks = {}
@@ -18,14 +20,14 @@ class SimpleTracker:
         self.track_trails = defaultdict(lambda: deque(maxlen=20))
 
     def update(self, detections: List[Dict]) -> List[Dict]:
-        """Update tracks with new detections"""
+        """Update tracks dengan detections baru - IMPROVED"""
         # Age existing tracks
         self._age_tracks()
 
         if not detections:
             return self._get_confirmed_tracks()
 
-        # Match detections to tracks
+        # Match detections ke tracks
         if self.tracks:
             self._match_detections_to_tracks(detections)
         else:
@@ -33,10 +35,17 @@ class SimpleTracker:
             for detection in detections:
                 self._create_track(detection)
 
-        return self._get_confirmed_tracks()
+        confirmed_tracks = self._get_confirmed_tracks()
+
+        # Debug info
+        if confirmed_tracks:
+            track_ids = [t.get('track_id', -1) for t in confirmed_tracks]
+            print(f"🎯 Tracker: {len(confirmed_tracks)} confirmed tracks with IDs: {track_ids}")
+
+        return confirmed_tracks
 
     def _age_tracks(self):
-        """Age all tracks and remove old ones"""
+        """Age tracks dan hapus yang terlalu lama"""
         tracks_to_remove = []
         for track_id, track in self.tracks.items():
             track['age'] += 1
@@ -44,12 +53,13 @@ class SimpleTracker:
                 tracks_to_remove.append(track_id)
 
         for track_id in tracks_to_remove:
+            print(f"🗑️ Removing expired track {track_id}")
             del self.tracks[track_id]
             if track_id in self.track_trails:
                 del self.track_trails[track_id]
 
     def _match_detections_to_tracks(self, detections: List[Dict]):
-        """Simple greedy matching based on IoU"""
+        """Match detections ke existing tracks menggunakan IoU"""
         track_ids = list(self.tracks.keys())
 
         # Calculate IoU matrix
@@ -79,25 +89,27 @@ class SimpleTracker:
             matched_tracks.add(track_idx)
             matched_detections.add(det_idx)
 
-            # Remove matched from consideration
+            # Remove matched dari consideration
             iou_matrix[track_idx, :] = 0
             iou_matrix[:, det_idx] = 0
 
-        # Create new tracks for unmatched detections
+        # Create new tracks untuk unmatched detections
         for i, detection in enumerate(detections):
             if i not in matched_detections:
                 self._create_track(detection)
 
     def _create_track(self, detection: Dict):
         """Create new track"""
-        self.tracks[self.next_id] = {
+        track_id = self.next_id
+        self.tracks[track_id] = {
             'bbox': detection['bbox'],
             'class_name': detection['class_name'],
             'confidence': detection['confidence'],
             'age': 0,
             'hits': 1
         }
-        self._update_trail(self.next_id, detection['bbox'])
+        self._update_trail(track_id, detection['bbox'])
+        print(f"🆕 New track created: {track_id} ({detection['class_name']})")
         self.next_id += 1
 
     def _update_track(self, track_id: int, detection: Dict):
@@ -105,7 +117,7 @@ class SimpleTracker:
         self.tracks[track_id].update({
             'bbox': detection['bbox'],
             'confidence': detection['confidence'],
-            'age': 0,
+            'age': 0,  # Reset age
             'hits': self.tracks[track_id]['hits'] + 1
         })
         self._update_trail(track_id, detection['bbox'])
@@ -116,7 +128,7 @@ class SimpleTracker:
         self.track_trails[track_id].append(center)
 
     def _get_confirmed_tracks(self) -> List[Dict]:
-        """Get confirmed tracks (enough hits)"""
+        """Get confirmed tracks yang cukup hits"""
         confirmed = []
         for track_id, track in self.tracks.items():
             if track['hits'] >= self.min_hits:
@@ -139,3 +151,18 @@ class SimpleTracker:
         union = area1 + area2 - intersection
 
         return intersection / (union + 1e-6)
+
+    def get_track_count(self) -> int:
+        """Get current number of active tracks"""
+        return len(self.tracks)
+
+    def get_confirmed_track_count(self) -> int:
+        """Get number of confirmed tracks"""
+        return len([t for t in self.tracks.values() if t['hits'] >= self.min_hits])
+
+    def reset(self):
+        """Reset tracker state"""
+        self.tracks.clear()
+        self.track_trails.clear()
+        self.next_id = 1
+        print("🔄 Tracker reset")
