@@ -1,4 +1,7 @@
-"""Simplified main GUI application"""
+"""
+Fixed src/gui/app.py - Proper Utils Integration
+"""
+
 import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
@@ -8,21 +11,67 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction
 
-# Fix: Use absolute imports instead of relative imports
-from src.gui.widgets.video import VideoWidget
-from src.gui.widgets.controls import ControlWidget
-from src.gui.widgets.stats import StatsWidget
-from src.gui.styles import apply_dark_theme
-from src.core.detector import VehicleDetector
-from src.utils.video_source import VideoSource
-from src.utils.config import ConfigManager
+# FIXED IMPORTS - Absolute imports dengan proper error handling
+try:
+    from src.gui.widgets.video import VideoWidget
+    from src.gui.widgets.controls import ControlWidget
+    from src.gui.widgets.stats import StatsWidget
+    from src.gui.styles import apply_dark_theme
+    print("✅ GUI widgets imported successfully")
+except ImportError as e:
+    print(f"❌ GUI widgets import error: {e}")
+    sys.exit(1)
+
+try:
+    from src.core.detector import VehicleDetector
+    print("✅ VehicleDetector imported successfully")
+except ImportError as e:
+    print(f"❌ VehicleDetector import error: {e}")
+    sys.exit(1)
+
+try:
+    from src.utils.video_source import VideoSource
+    from src.utils.config import ConfigManager
+    from src.utils.visualizer import Visualizer
+    print("✅ Utils modules imported successfully")
+except ImportError as e:
+    print(f"❌ Utils import error: {e}")
+    print("Creating minimal fallback implementations...")
+
+    # Fallback minimal implementations
+    class VideoSource:
+        @classmethod
+        def create(cls, config):
+            return None
+
+    class ConfigManager:
+        def __init__(self, path=None):
+            self.config = type('Config', (), {
+                'detection': type('Detection', (), {
+                    'model_path': 'dummy.xml',
+                    'device': 'CPU'
+                })()
+            })()
+
+        def get_detection_dict(self):
+            return {'model_path': 'dummy.xml', 'device': 'CPU'}
+
+        def save(self):
+            pass
+
+    class Visualizer:
+        @staticmethod
+        def draw_detections(frame, detections, stats):
+            return frame
 
 
 class MainWindow(QMainWindow):
-    """Main application window"""
+    """Fixed main window dengan proper utils integration"""
 
     def __init__(self, config_path: str = None):
         super().__init__()
+
+        print("🚀 MainWindow: Initializing...")
 
         # Initialize managers
         self.timer = None
@@ -30,14 +79,22 @@ class MainWindow(QMainWindow):
         self.stats_widget = None
         self.video_widget = None
         self.control_widget = None
-        self.config_manager = ConfigManager(config_path)
+
+        # FIXED: Proper config manager initialization
+        try:
+            self.config_manager = ConfigManager(config_path)
+            print("✅ ConfigManager initialized")
+        except Exception as e:
+            print(f"❌ ConfigManager error: {e}")
+            self.config_manager = ConfigManager()  # Fallback
+
         self.detector = None
         self.video_source = None
 
         # State
         self.is_running = False
 
-        # Setup UI
+        # Setup
         self.setup_ui()
         self.setup_menu()
         self.setup_timer()
@@ -46,10 +103,12 @@ class MainWindow(QMainWindow):
         # Apply theme
         apply_dark_theme(self)
 
-        print("✅ GUI initialized successfully")
+        print("✅ MainWindow: Initialization complete")
 
     def setup_ui(self):
         """Setup user interface"""
+        print("🔧 MainWindow: Setting up UI...")
+
         self.setWindowTitle("Vehicle Detection System")
         self.setGeometry(100, 100, 1400, 900)
 
@@ -65,9 +124,26 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
 
         # Create widgets
-        self.control_widget = ControlWidget(self.config_manager)
-        self.video_widget = VideoWidget()
-        self.stats_widget = StatsWidget()
+        try:
+            self.control_widget = ControlWidget(self.config_manager)
+            print("✅ ControlWidget created")
+        except Exception as e:
+            print(f"❌ ControlWidget error: {e}")
+            self.control_widget = QWidget()  # Fallback
+
+        try:
+            self.video_widget = VideoWidget()
+            print("✅ VideoWidget created")
+        except Exception as e:
+            print(f"❌ VideoWidget error: {e}")
+            self.video_widget = QWidget()  # Fallback
+
+        try:
+            self.stats_widget = StatsWidget()
+            print("✅ StatsWidget created")
+        except Exception as e:
+            print(f"❌ StatsWidget error: {e}")
+            self.stats_widget = QWidget()  # Fallback
 
         # Add to splitter
         splitter.addWidget(self.control_widget)
@@ -82,6 +158,8 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
+
+        print("✅ MainWindow: UI setup complete")
 
     def setup_menu(self):
         """Setup menu bar"""
@@ -117,15 +195,37 @@ class MainWindow(QMainWindow):
 
     def connect_signals(self):
         """Connect widget signals"""
-        # Control widget signals
-        self.control_widget.start_detection.connect(self.toggle_detection)
-        self.control_widget.source_changed.connect(self.load_video_source)
-        self.control_widget.device_changed.connect(self.change_device)
+        print("🔧 MainWindow: Connecting signals...")
 
-        # Video widget signals
-        self.video_widget.roi_drawn.connect(self.set_roi)
-        self.video_widget.line_drawn.connect(self.add_counting_line)
-        self.video_widget.annotations_cleared.connect(self.clear_annotations)
+        try:
+            # Control widget signals
+            if hasattr(self.control_widget, 'start_detection'):
+                self.control_widget.start_detection.connect(self.toggle_detection)
+                print("✅ start_detection signal connected")
+
+            if hasattr(self.control_widget, 'source_changed'):
+                self.control_widget.source_changed.connect(self.load_video_source)
+                print("✅ source_changed signal connected")
+
+            if hasattr(self.control_widget, 'device_changed'):
+                self.control_widget.device_changed.connect(self.change_device)
+                print("✅ device_changed signal connected")
+
+            # Video widget signals
+            if hasattr(self.video_widget, 'roi_drawn'):
+                self.video_widget.roi_drawn.connect(self.set_roi)
+                print("✅ roi_drawn signal connected")
+
+            if hasattr(self.video_widget, 'line_drawn'):
+                self.video_widget.line_drawn.connect(self.add_counting_line)
+                print("✅ line_drawn signal connected")
+
+            if hasattr(self.video_widget, 'annotations_cleared'):
+                self.video_widget.annotations_cleared.connect(self.clear_annotations)
+                print("✅ annotations_cleared signal connected")
+
+        except Exception as e:
+            print(f"❌ Signal connection error: {e}")
 
     def open_video_file(self):
         """Open video file dialog"""
@@ -145,6 +245,8 @@ class MainWindow(QMainWindow):
 
     def load_video_source(self, source_config: dict):
         """Load video source"""
+        print(f"🔧 Loading video source: {source_config}")
+
         try:
             # Stop current detection
             if self.is_running:
@@ -160,19 +262,22 @@ class MainWindow(QMainWindow):
             if self.video_source and self.video_source.open():
                 # Show first frame
                 ret, frame = self.video_source.read()
-                if ret:
+                if ret and hasattr(self.video_widget, 'update_frame'):
                     self.video_widget.update_frame(frame)
                     self.status_bar.showMessage(f"Loaded: {source_config.get('type', 'Unknown')}")
 
                     # Update video info
                     props = self.video_source.get_properties()
-                    self.stats_widget.update_video_info(props)
+                    if hasattr(self.stats_widget, 'update_video_info'):
+                        self.stats_widget.update_video_info(props)
+                    print("✅ Video source loaded successfully")
                 else:
                     raise Exception("Failed to read first frame")
             else:
                 raise Exception("Failed to open video source")
 
         except Exception as e:
+            print(f"❌ Video source loading error: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load video source:\n{str(e)}")
 
     def toggle_detection(self):
@@ -188,34 +293,44 @@ class MainWindow(QMainWindow):
 
     def start_detection(self):
         """Start detection"""
+        print("🚀 Starting detection...")
+
         try:
             # Initialize detector if needed
             if not self.detector:
                 config = self.config_manager.get_detection_dict()
                 self.detector = VehicleDetector(config['model_path'], config)
+                print("✅ Detector initialized")
 
             # Start processing
             self.timer.start(33)  # ~30 FPS
             self.is_running = True
 
             # Update UI
-            self.control_widget.set_detection_state(True)
+            if hasattr(self.control_widget, 'set_detection_state'):
+                self.control_widget.set_detection_state(True)
             self.status_bar.showMessage("Detection running...")
 
+            print("✅ Detection started")
+
         except Exception as e:
+            print(f"❌ Detection start error: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start detection:\n{str(e)}")
 
     def stop_detection(self):
         """Stop detection"""
+        print("🛑 Stopping detection...")
+
         self.timer.stop()
         self.is_running = False
 
         # Update UI
-        self.control_widget.set_detection_state(False)
+        if hasattr(self.control_widget, 'set_detection_state'):
+            self.control_widget.set_detection_state(False)
         self.status_bar.showMessage("Detection stopped")
 
     def process_frame(self):
-        """Process single frame"""
+        """Process single frame - FIXED"""
         if not self.video_source or not self.detector:
             return
 
@@ -232,28 +347,50 @@ class MainWindow(QMainWindow):
                     self.stop_detection()
                     return
 
-            # Run detection
+            # FIXED: Run detection with proper error handling
             detections, stats = self.detector.detect(frame)
 
-            # Draw results
-            from src.utils.visualizer import Visualizer
-            result_frame = Visualizer.draw_detections(frame, detections, stats)
-
-            # Update displays
-            self.video_widget.update_frame(result_frame)
-            self.stats_widget.update_detection_stats(stats, detections)
-
-            # Update status
+            # Debug output
             fps = stats.get('fps', 0)
             detection_count = len(detections)
+            total_crossings = stats.get('total_crossings', 0)
+
+            # Only print occasionally to avoid spam
+            if self.video_source.get_current_frame_number() % 30 == 0:
+                print(f"📊 Frame {self.video_source.get_current_frame_number()}: "
+                      f"FPS={fps:.1f}, Det={detection_count}, Cross={total_crossings}")
+
+            # FIXED: Draw results with proper error handling
+            try:
+                result_frame = Visualizer.draw_detections(frame, detections, stats)
+            except Exception as e:
+                print(f"❌ Visualization error: {e}")
+                result_frame = frame  # Fallback to original frame
+
+            # FIXED: Update displays with proper error handling
+            if hasattr(self.video_widget, 'update_frame'):
+                try:
+                    self.video_widget.update_frame(result_frame)
+                except Exception as e:
+                    print(f"❌ Video widget update error: {e}")
+
+            if hasattr(self.stats_widget, 'update_detection_stats'):
+                try:
+                    self.stats_widget.update_detection_stats(stats, detections)
+                except Exception as e:
+                    print(f"❌ Stats widget update error: {e}")
+
+            # Update status
+            frame_num = self.video_source.get_current_frame_number()
             self.status_bar.showMessage(
                 f"FPS: {fps:.1f} | Detections: {detection_count} | "
-                f"Frame: {self.video_source.get_current_frame_number()}"
+                f"Crossings: {total_crossings} | Frame: {frame_num}"
             )
 
         except Exception as e:
-            print(f"Frame processing error: {e}")
-            self.stop_detection()
+            print(f"❌ Frame processing error: {e}")
+            # Don't stop detection for single frame errors
+            # self.stop_detection()
 
     def change_device(self, device: str):
         """Change processing device"""
@@ -267,7 +404,7 @@ class MainWindow(QMainWindow):
 
     def set_roi(self, points: list):
         """Set region of interest"""
-        if self.detector and self.video_widget.current_frame is not None:
+        if self.detector and hasattr(self.video_widget, 'current_frame') and self.video_widget.current_frame is not None:
             frame_shape = self.video_widget.current_frame.shape
             success = self.detector.set_roi(points, frame_shape)
 
@@ -282,7 +419,7 @@ class MainWindow(QMainWindow):
             success = self.detector.add_counting_line(point1, point2)
 
             if success:
-                line_count = len(self.detector.counting_lines)
+                line_count = len(getattr(self.detector, 'counting_lines', []))
                 self.status_bar.showMessage(f"Counting line {line_count} added")
             else:
                 QMessageBox.warning(self, "Warning", "Failed to add counting line")
@@ -291,16 +428,21 @@ class MainWindow(QMainWindow):
         """Clear all annotations"""
         if self.detector:
             self.detector.clear_roi_and_lines()
-            self.stats_widget.clear_vehicle_counts()
+            if hasattr(self.stats_widget, 'clear_vehicle_counts'):
+                self.stats_widget.clear_vehicle_counts()
             self.status_bar.showMessage("Annotations cleared")
 
     def reset_view(self):
         """Reset view to default"""
-        self.video_widget.reset_view()
-        self.stats_widget.reset()
+        if hasattr(self.video_widget, 'reset_view'):
+            self.video_widget.reset_view()
+        if hasattr(self.stats_widget, 'reset'):
+            self.stats_widget.reset()
 
     def closeEvent(self, event):
         """Handle application close"""
+        print("🔄 Application closing...")
+
         try:
             # Stop detection
             if self.is_running:
@@ -314,9 +456,10 @@ class MainWindow(QMainWindow):
             self.config_manager.save()
 
             event.accept()
+            print("✅ Application closed cleanly")
 
         except Exception as e:
-            print(f"Cleanup error: {e}")
+            print(f"❌ Cleanup error: {e}")
             event.accept()
 
 
@@ -338,5 +481,8 @@ def run_app(config_path: str = None):
         sys.exit(app.exec())
 
     except Exception as e:
-        print(f"Application error: {e}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    run_app()

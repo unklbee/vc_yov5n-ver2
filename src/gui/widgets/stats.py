@@ -363,8 +363,8 @@ class StatsWidget(QWidget):
             vehicle_counts = stats.get('vehicle_counts', {})
             total_crossings = stats.get('total_crossings', 0)
 
-            if total_crossings > 0:
-                print(f"📊 GUI Update: Total crossings = {total_crossings}")
+            # if total_crossings > 0:
+            #     print(f"📊 GUI Update: Total crossings = {total_crossings}")
 
             # Update vehicle counts jika ada data counting
             if vehicle_counts:
@@ -418,8 +418,8 @@ class StatsWidget(QWidget):
         self.down_crossings_card.update_value(str(total_down), "#ff6b6b")
 
         # Print debug info untuk memastikan data sampai
-        if crossing_events:
-            print(f"📊 GUI Stats Update: Total={total_crossings}, Up={total_up}, Down={total_down}")
+        # if crossing_events:
+        #     print(f"📊 GUI Stats Update: Total={total_crossings}, Up={total_up}, Down={total_down}")
 
     def _update_vehicle_counts_from_stats(self, stats: Dict[str, Any]):
         """PERBAIKAN: Update vehicle counts dari detector stats, bukan local tracking"""

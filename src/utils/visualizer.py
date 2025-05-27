@@ -1,6 +1,7 @@
-## Visualization Helper (`src/utils/visualizer.py`)
+"""
+Complete src/utils/visualizer.py - Visualization Utils
+"""
 
-"""Lightweight visualization utilities"""
 import cv2
 import numpy as np
 from typing import List, Dict, Any
@@ -68,21 +69,23 @@ class Visualizer:
         h, w = frame.shape[:2]
 
         # Stats background
-        cv2.rectangle(frame, (10, 10), (200, 100), (0, 0, 0), -1)
-        cv2.rectangle(frame, (10, 10), (200, 100), (0, 255, 0), 2)
+        cv2.rectangle(frame, (10, 10), (250, 120), (0, 0, 0), -1)
+        cv2.rectangle(frame, (10, 10), (250, 120), (0, 255, 0), 2)
 
         # Stats text
         fps = stats.get('fps', 0)
         proc_time = stats.get('processing_time', 0) * 1000  # Convert to ms
+        total_crossings = stats.get('total_crossings', 0)
 
         stats_lines = [
             f"FPS: {fps:.1f}",
             f"Processing: {proc_time:.1f}ms",
             f"Detections: {detection_count}",
+            f"Crossings: {total_crossings}",
             f"ROI: {'ON' if stats.get('roi_enabled', False) else 'OFF'}"
         ]
 
         for i, line in enumerate(stats_lines):
-            y_pos = 30 + i * 20
+            y_pos = 30 + i * 18
             cv2.putText(frame, line, (15, y_pos),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)

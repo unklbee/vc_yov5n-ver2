@@ -38,9 +38,9 @@ class SimpleTracker:
         confirmed_tracks = self._get_confirmed_tracks()
 
         # Debug info
-        if confirmed_tracks:
-            track_ids = [t.get('track_id', -1) for t in confirmed_tracks]
-            print(f"🎯 Tracker: {len(confirmed_tracks)} confirmed tracks with IDs: {track_ids}")
+        # if confirmed_tracks:
+        #     track_ids = [t.get('track_id', -1) for t in confirmed_tracks]
+        #     print(f"🎯 Tracker: {len(confirmed_tracks)} confirmed tracks with IDs: {track_ids}")
 
         return confirmed_tracks
 
@@ -53,7 +53,7 @@ class SimpleTracker:
                 tracks_to_remove.append(track_id)
 
         for track_id in tracks_to_remove:
-            print(f"🗑️ Removing expired track {track_id}")
+            # print(f"🗑️ Removing expired track {track_id}")
             del self.tracks[track_id]
             if track_id in self.track_trails:
                 del self.track_trails[track_id]
@@ -109,7 +109,7 @@ class SimpleTracker:
             'hits': 1
         }
         self._update_trail(track_id, detection['bbox'])
-        print(f"🆕 New track created: {track_id} ({detection['class_name']})")
+        # print(f"🆕 New track created: {track_id} ({detection['class_name']})")
         self.next_id += 1
 
     def _update_track(self, track_id: int, detection: Dict):

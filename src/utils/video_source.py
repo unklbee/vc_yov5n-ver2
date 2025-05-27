@@ -1,8 +1,9 @@
-## Optimized Video Source (`src/utils/video_source.py`)
+"""
+Complete src/utils/video_source.py - Video Source Handler
+"""
 
-"""Optimized video source handling"""
 import cv2
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, Dict, Any
 from pathlib import Path
 
 class VideoSource:
@@ -20,9 +21,10 @@ class VideoSource:
             self.cap = cv2.VideoCapture(self.source)
             if self.cap.isOpened():
                 self._get_properties()
+                print(f"✅ Video source opened: {self.source}")
                 return True
         except Exception as e:
-            print(f"Failed to open video source: {e}")
+            print(f"❌ Failed to open video source: {e}")
         return False
 
     def read(self) -> Tuple[bool, Optional[cv2.Mat]]:
@@ -41,6 +43,7 @@ class VideoSource:
         if self.cap:
             self.cap.release()
             self.cap = None
+            print("✅ Video source released")
 
     def _get_properties(self):
         """Get video properties"""
@@ -52,7 +55,7 @@ class VideoSource:
                 'frame_count': int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             }
 
-    def get_properties(self) -> dict:
+    def get_properties(self) -> Dict[str, Any]:
         """Get video properties"""
         return self.properties.copy()
 
@@ -67,7 +70,7 @@ class VideoSource:
         return self._frame_count
 
     @classmethod
-    def create(cls, source_config: dict) -> Optional['VideoSource']:
+    def create(cls, source_config: Dict[str, Any]) -> Optional['VideoSource']:
         """Factory method to create video source from config"""
         source_type = source_config.get('type', '').lower()
 
@@ -79,6 +82,8 @@ class VideoSource:
             file_path = source_config.get('file_path', '')
             if file_path and Path(file_path).exists():
                 return cls(file_path)
+            else:
+                print(f"❌ Video file not found: {file_path}")
 
         elif source_type == 'rtsp':
             rtsp_url = source_config.get('rtsp_url', '')

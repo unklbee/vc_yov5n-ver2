@@ -1,6 +1,7 @@
-## Configuration Manager (`src/utils/config.py`)
+"""
+Complete src/utils/config.py - Configuration Manager
+"""
 
-"""Centralized configuration management"""
 import yaml
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
