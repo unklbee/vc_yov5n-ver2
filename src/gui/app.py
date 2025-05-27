@@ -1,5 +1,3 @@
-## 1. Main Application (`src/gui/app.py`)
-
 """Simplified main GUI application"""
 import sys
 from pathlib import Path
@@ -10,13 +8,14 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction
 
-from .widgets.video import VideoWidget
-from .widgets.controls import ControlWidget
-from .widgets.stats import StatsWidget
-from .styles import apply_dark_theme
-from ..core.detector import VehicleDetector
-from ..utils.video_source import VideoSource
-from ..utils.config import ConfigManager
+# Fix: Use absolute imports instead of relative imports
+from src.gui.widgets.video import VideoWidget
+from src.gui.widgets.controls import ControlWidget
+from src.gui.widgets.stats import StatsWidget
+from src.gui.styles import apply_dark_theme
+from src.core.detector import VehicleDetector
+from src.utils.video_source import VideoSource
+from src.utils.config import ConfigManager
 
 
 class MainWindow(QMainWindow):
@@ -26,6 +25,11 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # Initialize managers
+        self.timer = None
+        self.status_bar = None
+        self.stats_widget = None
+        self.video_widget = None
+        self.control_widget = None
         self.config_manager = ConfigManager(config_path)
         self.detector = None
         self.video_source = None
@@ -232,7 +236,7 @@ class MainWindow(QMainWindow):
             detections, stats = self.detector.detect(frame)
 
             # Draw results
-            from ..utils.visualizer import Visualizer
+            from src.utils.visualizer import Visualizer
             result_frame = Visualizer.draw_detections(frame, detections, stats)
 
             # Update displays

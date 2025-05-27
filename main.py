@@ -1,10 +1,6 @@
-# Entry Point and Essential Utilities
-
-## Main Entry Point (`main.py`)
-
 #!/usr/bin/env python3
 """
-Vehicle Detection System - Optimized Entry Point
+Vehicle Detection System - Fixed Entry Point
 """
 import sys
 import os
@@ -56,6 +52,7 @@ def check_dependencies():
 def run_gui_mode(config_path: str = None):
     """Run GUI mode"""
     try:
+        # Fix: Use absolute imports
         from gui.app import run_app
         print("🚀 Starting GUI mode...")
         run_app(config_path)
@@ -71,6 +68,7 @@ def run_gui_mode(config_path: str = None):
 def run_cli_mode(args):
     """Run CLI mode"""
     try:
+        # Fix: Use absolute imports
         from src.cli.cli_interface import run_cli
         print("🚀 Starting CLI mode...")
         return run_cli(args)
@@ -102,6 +100,8 @@ def run_test_mode():
 
     except Exception as e:
         print(f"❌ Test failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def main():

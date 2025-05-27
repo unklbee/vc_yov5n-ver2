@@ -1,32 +1,19 @@
-# Vehicle Detection System - Default Configuration
-
-# Detection settings
 detection:
-  model_path: "models/yolov5n-416.xml"
-  device: "CPU"  # CPU or GPU
-  input_shape: [416, 416]
   conf_threshold: 0.25
+  device: GPU
+  frame_skip: 1
+  input_shape:
+  - 416
+  - 416
+  model_path: models/yolov5n-416.xml
   nms_threshold: 0.5
-  frame_skip: 2
-
-# UI settings
-ui:
-  window_width: 1200
-  window_height: 800
-  theme: "dark"
-  auto_save: true
-
-# Storage settings
 storage:
   enabled: true
-  save_interval: 300  # seconds
-  output_dir: "data/counts"
-  format: "json"  # json, csv, both
-
-# Advanced settings
-advanced:
-  max_fps: 30
-  buffer_size: 1
-  log_level: "INFO"
-  enable_tracking: true
-  trail_length: 30
+  format: json
+  output_dir: data/counts
+  save_interval: 300
+ui:
+  auto_save: true
+  theme: dark
+  window_height: 800
+  window_width: 1200

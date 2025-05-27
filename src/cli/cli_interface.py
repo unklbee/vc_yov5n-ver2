@@ -1,11 +1,10 @@
-## 2. CLI Interface (`src/cli/interface.py`)
-
 """Optimized CLI interface"""
 import cv2
 import time
 import signal
 from pathlib import Path
 
+# Fix: Use absolute imports
 from ..core.detector import VehicleDetector
 from ..utils.video_source import VideoSource
 from ..utils.config import ConfigManager

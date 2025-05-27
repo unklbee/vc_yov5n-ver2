@@ -4,7 +4,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QLabel, QPushButton,
     QComboBox, QSpinBox, QSlider, QHBoxLayout, QFileDialog,
-    QLineEdit, QRadioButton, QButtonGroup, QScrollArea
+    QLineEdit, QRadioButton, QButtonGroup, QScrollArea, QFrame
 )
 from PySide6.QtCore import Qt, Signal
 from typing import Dict
@@ -41,7 +41,8 @@ class ControlWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setFrameShape(scroll.NoFrame)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setFrameShadow(QFrame.Plain)
 
         # Content widget
         content = QWidget()

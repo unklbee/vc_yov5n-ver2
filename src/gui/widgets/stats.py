@@ -83,7 +83,7 @@ class StatsWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setFrameShape(scroll.NoFrame)
+        scroll.setFrameShape(QFrame.NoFrame)
 
         # Content widget
         content = QWidget()
